@@ -22,6 +22,7 @@ import { SafetyAndCostSection } from './components/SafetyAndCostSection';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { StationPickerModal } from './components/StationPickerModal';
+import { StandaloneMapPage } from './components/StandaloneMapPage';
 import confetti from 'canvas-confetti';
 import { 
   CheckCircle2, 
@@ -42,7 +43,9 @@ export default function App() {
   const [departureTime, setDepartureTime] = useState<string>('20:00');
   const [stops, setStops] = useState<RestStop[]>(ROUTE_OPTIONS[0].defaultStops);
   const [vehicle, setVehicle] = useState<VehicleSetting>(DEFAULT_VEHICLE_SETTINGS[0]);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'map' | 'stations' | 'safety' | 'cost'>('map');
+  const [activeTab, setActiveTab] = useState<'map-only' | 'timeline' | 'map' | 'stations' | 'safety' | 'cost'>('map-only');
+  const [filterBrand, setFilterBrand] = useState<string>('All');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Modals state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -150,142 +153,170 @@ export default function App() {
         googleMapsUrl={googleMapsNavUrl}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        selectedRoute={selectedRoute}
+        onSelectRoute={handleSelectRoute}
+        filterBrand={filterBrand}
+        onFilterBrandChange={setFilterBrand}
+        isMobileDrawerOpen={isMobileDrawerOpen}
+        setIsMobileDrawerOpen={setIsMobileDrawerOpen}
       />
 
       {/* 2. Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-8">
+      <main className={`flex-1 w-full mx-auto ${
+        activeTab === 'map-only' 
+          ? 'max-w-[1920px] px-1 sm:px-4 lg:px-6 py-1.5 sm:py-5' 
+          : 'max-w-[1600px] px-3 sm:px-6 py-3 sm:py-5'
+      }`}>
         
-        {/* Summary Metric Cards */}
-        <TripSummaryBanner
-          trip={trip}
-          route={selectedRoute}
-          vehicle={vehicle}
-          onOpenAiModal={() => setIsAiModalOpen(true)}
-          stopsCount={stops.length}
-        />
-
-        {/* Route Selector (3 Options comparison) */}
-        <RouteSelector
-          selectedRouteId={selectedRoute.id}
-          onSelectRoute={handleSelectRoute}
-        />
-
-        {/* Quick Share / Export Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-6 text-xs">
-          <div className="flex items-center gap-2 text-slate-700">
-            <span className="font-bold text-slate-900 flex items-center gap-1">
-              <Navigation className="w-4 h-4 text-blue-600" />
-              การนำทางจริง:
-            </span>
-            <span className="text-slate-600 hidden sm:inline">
-              คลิกเปิด Google Maps เพื่อเริ่มระบบนำทาง Turn-by-turn บนมือถือพร้อมจุดแวะทุกจุด ({stops.length} จุดพัก)
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              onClick={() => handleOpenPicker()}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors border border-blue-200"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ เพิ่มจุดพัก</span>
-            </button>
-
-            <button
-              onClick={handleSharePlan}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>{shareCopied ? "คัดลอกสรุปแล้ว! ✓" : "แชร์สรุปทริป"}</span>
-            </button>
-
-            <a
-              href={googleMapsNavUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-xs transition-colors"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>เปิด GPS บน Google Maps</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-
-        {/* Dynamic Tab Views */}
-        {activeTab === 'timeline' && (
-          <div className="space-y-6">
-            <TimelineView
+        {activeTab === 'map-only' ? (
+          <StandaloneMapPage
+            selectedRoute={selectedRoute}
+            onSelectRoute={handleSelectRoute}
+            stops={stops}
+            trip={trip}
+            googleMapsNavUrl={googleMapsNavUrl}
+            onAddStation={handleAddStationToStops}
+            onRemoveStop={handleRemoveStationFromStops}
+            onGoToFullView={() => setActiveTab('map')}
+            filterBrand={filterBrand}
+            onFilterBrandChange={setFilterBrand}
+            onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
+          />
+        ) : (
+          <>
+            {/* Summary Metric Cards */}
+            <TripSummaryBanner
               trip={trip}
               route={selectedRoute}
-              stops={stops}
-              onUpdateStops={setStops}
-              onResetStops={handleResetStops}
-              onOpenStationPicker={handleOpenPicker}
+              vehicle={vehicle}
+              onOpenAiModal={() => setIsAiModalOpen(true)}
+              stopsCount={stops.length}
             />
-            {/* Embedded Map for visual context */}
-            <MapInteractive
-              route={selectedRoute}
-              stops={stops}
-              gasStations={selectedRoute.gasStationsList}
-              onAddStation={(st) => handleAddStationToStops(st)}
-              onRemoveStop={handleRemoveStationFromStops}
+
+            {/* Route Selector (3 Options comparison) */}
+            <RouteSelector
+              selectedRouteId={selectedRoute.id}
+              onSelectRoute={handleSelectRoute}
             />
-          </div>
-        )}
 
-        {activeTab === 'map' && (
-          <div className="space-y-6">
-            <MapInteractive
-              route={selectedRoute}
-              stops={stops}
-              gasStations={selectedRoute.gasStationsList}
-              onAddStation={(st) => handleAddStationToStops(st)}
-              onRemoveStop={handleRemoveStationFromStops}
-            />
-            <TimelineView
-              trip={trip}
-              route={selectedRoute}
-              stops={stops}
-              onUpdateStops={setStops}
-              onResetStops={handleResetStops}
-              onOpenStationPicker={handleOpenPicker}
-            />
-          </div>
-        )}
+            {/* Quick Share / Export Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs mb-6 text-xs">
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="font-bold text-slate-900 flex items-center gap-1">
+                  <Navigation className="w-4 h-4 text-blue-600" />
+                  การนำทางจริง:
+                </span>
+                <span className="text-slate-600 hidden sm:inline">
+                  คลิกเปิด Google Maps เพื่อเริ่มระบบนำทาง Turn-by-turn บนมือถือพร้อมจุดแวะทุกจุด ({stops.length} จุดพัก)
+                </span>
+              </div>
 
-        {activeTab === 'stations' && (
-          <GasStationDirectory
-            gasStations={selectedRoute.gasStationsList}
-            currentStops={stops}
-            onAddStationToStops={handleAddStationToStops}
-            onRemoveStationFromStops={handleRemoveStationFromStops}
-          />
-        )}
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => handleOpenPicker()}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors border border-blue-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ เพิ่มจุดพัก</span>
+                </button>
 
-        {activeTab === 'safety' && (
-          <SafetyAndCostSection
-            vehicle={vehicle}
-            onVehicleChange={setVehicle}
-            route={selectedRoute}
-            totalDistanceKm={trip.totalDistanceKm}
-          />
-        )}
+                <button
+                  onClick={handleSharePlan}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{shareCopied ? "คัดลอกสรุปแล้ว! ✓" : "แชร์สรุปทริป"}</span>
+                </button>
 
-        {activeTab === 'cost' && (
-          <SafetyAndCostSection
-            vehicle={vehicle}
-            onVehicleChange={setVehicle}
-            route={selectedRoute}
-            totalDistanceKm={trip.totalDistanceKm}
-          />
+                <a
+                  href={googleMapsNavUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-xs transition-colors"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>เปิด GPS บน Google Maps</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* Dynamic Tab Views */}
+            {activeTab === 'timeline' && (
+              <div className="space-y-6">
+                <TimelineView
+                  trip={trip}
+                  route={selectedRoute}
+                  stops={stops}
+                  onUpdateStops={setStops}
+                  onResetStops={handleResetStops}
+                  onOpenStationPicker={handleOpenPicker}
+                />
+                {/* Embedded Map for visual context */}
+                <MapInteractive
+                  route={selectedRoute}
+                  stops={stops}
+                  gasStations={selectedRoute.gasStationsList}
+                  onAddStation={(st) => handleAddStationToStops(st)}
+                  onRemoveStop={handleRemoveStationFromStops}
+                />
+              </div>
+            )}
+
+            {activeTab === 'map' && (
+              <div className="space-y-6">
+                <MapInteractive
+                  route={selectedRoute}
+                  stops={stops}
+                  gasStations={selectedRoute.gasStationsList}
+                  onAddStation={(st) => handleAddStationToStops(st)}
+                  onRemoveStop={handleRemoveStationFromStops}
+                />
+                <TimelineView
+                  trip={trip}
+                  route={selectedRoute}
+                  stops={stops}
+                  onUpdateStops={setStops}
+                  onResetStops={handleResetStops}
+                  onOpenStationPicker={handleOpenPicker}
+                />
+              </div>
+            )}
+
+            {activeTab === 'stations' && (
+              <GasStationDirectory
+                gasStations={selectedRoute.gasStationsList}
+                currentStops={stops}
+                onAddStationToStops={handleAddStationToStops}
+                onRemoveStationFromStops={handleRemoveStationFromStops}
+              />
+            )}
+
+            {activeTab === 'safety' && (
+              <SafetyAndCostSection
+                vehicle={vehicle}
+                onVehicleChange={setVehicle}
+                route={selectedRoute}
+                totalDistanceKm={trip.totalDistanceKm}
+              />
+            )}
+
+            {activeTab === 'cost' && (
+              <SafetyAndCostSection
+                vehicle={vehicle}
+                onVehicleChange={setVehicle}
+                route={selectedRoute}
+                totalDistanceKm={trip.totalDistanceKm}
+              />
+            )}
+          </>
         )}
 
       </main>
 
       {/* 3. Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-8 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="font-bold text-slate-200 text-sm mb-1">
               ระบบวางแผนการเดินทาง & สรุปจุดพักรถ ลำพูน ➔ นครราชสีมา (จอหอ)

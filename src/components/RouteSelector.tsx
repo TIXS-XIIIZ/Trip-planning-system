@@ -13,15 +13,15 @@ export const RouteSelector: React.FC<RouteSelectorProps> = ({
   onSelectRoute,
 }) => {
   return (
-    <div id="route-selector-section" className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3.5">
+    <div id="route-selector-section" className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-2.5">
         <div>
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1.5">
             <Navigation className="w-4 h-4 text-blue-600" />
-            <span>เลือกเส้นทางเดินทาง (เปรียบเทียบ 3 ตัวเลือก)</span>
+            <span>เลือกเส้นทาง (เปรียบเทียบ 3 ตัวเลือก)</span>
           </h3>
-          <p className="text-xs text-slate-500">
-            ระบบแนะนำ <strong className="text-emerald-700">เส้นทาง 1</strong> ซึ่งเป็นเส้นทางที่สั้นและใกล้ที่สุดตามที่ท่านต้องการ
+          <p className="text-[11px] sm:text-xs text-slate-500 hidden sm:block">
+            แนะนำ <strong className="text-emerald-700">เส้นทาง 1</strong> สั้นและประหยัดระยะทางที่สุด
           </p>
         </div>
       </div>

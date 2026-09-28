@@ -32,25 +32,25 @@ export const TripSummaryBanner: React.FC<TripSummaryBannerProps> = ({
   stopsCount,
 }) => {
   return (
-    <div id="trip-summary-container" className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 mb-6">
+    <div id="trip-summary-container" className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm p-3.5 sm:p-5 mb-4 sm:mb-6">
       
       {/* Route Badge & Origin-Destination Title */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-slate-100">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-              {route.isShortest ? "★ เส้นทางที่ใกล้ที่สุด (Shortest Route)" : route.tag}
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              {route.isShortest ? "★ เส้นทางสั้นสุด" : route.tag}
             </span>
-            <span className="text-xs text-slate-500 font-medium">
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
               ผ่าน {route.highways.join(' ➔ ')}
             </span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            สรุปแผนเดินทาง: ลำพูน ➔ นครราชสีมา (ศฝร.ภ.3 จอหอ)
+          <h2 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">
+            สรุปแผนเดินทาง: ลำพูน ➔ โคราช (ศฝร.ภ.3 จอหอ)
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-            จาก <strong className="text-slate-800">{ORIGIN_INFO.name}</strong> สู่ <strong className="text-slate-800">{DESTINATION_INFO.name}</strong> (ตาม Google Maps ลิงก์ที่ระบุ)
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 hidden sm:block">
+            จาก {ORIGIN_INFO.name} สู่ {DESTINATION_INFO.name}
           </p>
         </div>
 

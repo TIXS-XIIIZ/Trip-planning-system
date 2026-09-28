@@ -275,8 +275,13 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
     container.addEventListener('click', handlePopupClicks);
 
     return () => {
+      isMounted = false;
       resizeObserver.disconnect();
       container.removeEventListener('click', handlePopupClicks);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, [route, stops, gasStations, onAddStation, onRemoveStop, filterBrand]);
 
