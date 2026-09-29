@@ -57,6 +57,87 @@ export function formatDurationThai(totalMinutes: number): string {
   return `${h} ชม. ${m} นาที`;
 }
 
+// Calculate estimated driving time from Start point (Big C Lamphun) to any given km / gas station
+export function getEstimatedDriveTimeFromStart(
+  kmFromStart: number,
+  route?: RouteOption,
+  departureTime?: string
+): {
+  driveMinutes: number;
+  formattedDuration: string;
+  estimatedArrivalTime?: string;
+  shortLabel: string;
+} {
+  if (kmFromStart <= 0) {
+    return {
+      driveMinutes: 0,
+      formattedDuration: "0 นาที",
+      estimatedArrivalTime: departureTime ? `${departureTime} น.` : undefined,
+      shortLabel: "จุดเริ่มต้น",
+    };
+  }
+
+  let driveMinutes = 0;
+
+  if (route && route.defaultStops && route.defaultStops.length > 0) {
+    let accumulatedTime = 0;
+    let prevKm = 0;
+    let found = false;
+
+    for (const stop of route.defaultStops) {
+      if (kmFromStart <= stop.kmFromStart) {
+        const legDist = stop.kmFromStart - prevKm;
+        const legTime = stop.driveTimeFromPrevMin || Math.round((legDist / 75) * 60);
+        if (legDist > 0) {
+          const fraction = (kmFromStart - prevKm) / legDist;
+          driveMinutes = accumulatedTime + Math.round(fraction * legTime);
+        } else {
+          driveMinutes = accumulatedTime + legTime;
+        }
+        found = true;
+        break;
+      } else {
+        accumulatedTime += (stop.driveTimeFromPrevMin || Math.round(((stop.kmFromStart - prevKm) / 75) * 60));
+        prevKm = stop.kmFromStart;
+      }
+    }
+
+    if (!found) {
+      const remainingDist = kmFromStart - prevKm;
+      const speed = (route.totalDistanceKm > 0 && route.baseDriveTimeMinutes > 0)
+        ? (route.totalDistanceKm / route.baseDriveTimeMinutes)
+        : 1.25;
+      driveMinutes = accumulatedTime + Math.round(remainingDist / speed);
+    }
+  } else if (route && route.totalDistanceKm > 0 && route.baseDriveTimeMinutes > 0) {
+    const fraction = Math.min(1.2, kmFromStart / route.totalDistanceKm);
+    driveMinutes = Math.round(fraction * route.baseDriveTimeMinutes);
+  } else {
+    // Default 75 km/h avg
+    driveMinutes = Math.round((kmFromStart / 75) * 60);
+  }
+
+  driveMinutes = Math.max(1, driveMinutes);
+  const formattedDuration = formatDurationThai(driveMinutes);
+
+  let estimatedArrivalTime: string | undefined = undefined;
+  if (departureTime) {
+    const startMinutes = parseTimeToMinutes(departureTime);
+    estimatedArrivalTime = formatMinutesToTime(startMinutes + driveMinutes);
+  }
+
+  const shortLabel = estimatedArrivalTime
+    ? `~${formattedDuration} จาก Start (ถึง ~${estimatedArrivalTime})`
+    : `~${formattedDuration} จากจุด Start`;
+
+  return {
+    driveMinutes,
+    formattedDuration,
+    estimatedArrivalTime,
+    shortLabel,
+  };
+}
+
 export function calculateTripDetails(
   route: RouteOption,
   stops: RestStop[],

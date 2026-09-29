@@ -18,15 +18,15 @@ export const RouteSelector: React.FC<RouteSelectorProps> = ({
         <div>
           <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1.5">
             <Navigation className="w-4 h-4 text-blue-600" />
-            <span>เลือกเส้นทาง (เปรียบเทียบ 3 ตัวเลือก)</span>
+            <span>เลือกเส้นทาง (เปรียบเทียบ {ROUTE_OPTIONS.length} ตัวเลือก)</span>
           </h3>
           <p className="text-[11px] sm:text-xs text-slate-500 hidden sm:block">
-            แนะนำ <strong className="text-emerald-700">เส้นทาง 1</strong> สั้นและประหยัดระยะทางที่สุด
+            เส้นทางเริ่มต้น: <strong className="text-purple-700">เส้นทาง 4</strong> (สายเอเชีย เลี้ยวภาชี ขึ้นทางด่วน M6) หรือเลือก <strong className="text-emerald-700">เส้นทาง 1</strong> (สายสั้นที่สุด)
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
         {ROUTE_OPTIONS.map((route) => {
           const isSelected = route.id === selectedRouteId;
 
@@ -50,6 +50,8 @@ export const RouteSelector: React.FC<RouteSelectorProps> = ({
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : route.tagColor === 'blue'
                         ? 'bg-blue-100 text-blue-800'
+                        : route.tagColor === 'purple'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
                         : 'bg-amber-100 text-amber-800'
                     }`}
                   >

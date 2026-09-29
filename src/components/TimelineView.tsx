@@ -7,7 +7,8 @@ import {
 import { 
   CalculatedTrip, 
   CalculatedLeg, 
-  formatDurationThai 
+  formatDurationThai,
+  getEstimatedDriveTimeFromStart 
 } from '../utils/tripCalculator';
 import { 
   MapPin, 
@@ -321,6 +322,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     <p className="text-xs text-slate-500 mt-0.5">
                       {stop.location}
                     </p>
+                    {(() => {
+                      const timeInfo = getEstimatedDriveTimeFromStart(stop.kmFromStart, route, trip.departureTime);
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                            <Clock className="w-3 h-3 text-blue-600 shrink-0" />
+                            ใช้เวลาขับจากจุด Start: ~{timeInfo.formattedDuration}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Amenities */}

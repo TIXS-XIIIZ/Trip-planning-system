@@ -29,6 +29,7 @@ interface NavbarProps {
   onFilterBrandChange: (brand: string) => void;
   isMobileDrawerOpen?: boolean;
   setIsMobileDrawerOpen?: (open: boolean) => void;
+  onOpenCustomStationModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -45,6 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onFilterBrandChange,
   isMobileDrawerOpen: controlledDrawerOpen,
   setIsMobileDrawerOpen: controlledSetDrawerOpen,
+  onOpenCustomStationModal,
 }) => {
   const [internalDrawerOpen, setInternalDrawerOpen] = useState(false);
   const isDrawerOpen = controlledDrawerOpen !== undefined ? controlledDrawerOpen : internalDrawerOpen;
@@ -340,6 +342,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         onOpenAiAssistant={onOpenAiAssistant}
         onOpenPrintReport={onOpenPrintReport}
         googleMapsUrl={googleMapsUrl}
+        onOpenCustomStationModal={onOpenCustomStationModal}
       />
     </>
   );

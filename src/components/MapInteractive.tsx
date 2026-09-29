@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { RouteOption, RestStop, GasStation } from '../types';
 import { DESTINATION_INFO, ORIGIN_INFO } from '../data/routeData';
 import { MapPin, Navigation, ExternalLink, Sparkles, Fuel, Zap } from 'lucide-react';
+import { getEstimatedDriveTimeFromStart } from '../utils/tripCalculator';
 
 interface MapInteractiveProps {
   route: RouteOption;
@@ -10,6 +11,7 @@ interface MapInteractiveProps {
   gasStations: GasStation[];
   onAddStation: (station: GasStation) => void;
   onRemoveStop: (stopId: string) => void;
+  departureTime?: string;
 }
 
 export const MapInteractive: React.FC<MapInteractiveProps> = ({
@@ -18,6 +20,7 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
   gasStations,
   onAddStation,
   onRemoveStop,
+  departureTime,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -85,24 +88,29 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
             markersGroup.removeLayer(fallbackPolyline);
           }
           
+          const isExpresswayRoute = route.id === 'route-phachi-expressway';
+          const routeColor = isExpresswayRoute ? '#7c3aed' : '#2563eb';
+
           L.polyline(leafletCoords, {
-            color: '#2563eb', // Blue-600
-            weight: 5,
-            opacity: 0.85,
+            color: routeColor,
+            weight: isExpresswayRoute ? 6 : 5,
+            opacity: 0.9,
             lineCap: 'round',
             lineJoin: 'round',
-            dashArray: route.isShortest ? undefined : '8, 8',
+            dashArray: (route.isShortest || isExpresswayRoute) ? undefined : '8, 8',
           }).addTo(markersGroup);
         }
       } catch (e) {
         console.warn('Failed to fetch real route, falling back to straight lines:', e);
         // Leave the fallback line but make it primary color
         if (isMounted) {
+          const isExpresswayRoute = route.id === 'route-phachi-expressway';
+          const routeColor = isExpresswayRoute ? '#7c3aed' : '#2563eb';
           fallbackPolyline.setStyle({
-            color: '#2563eb',
-            weight: 5,
-            opacity: 0.85,
-            dashArray: route.isShortest ? undefined : '8, 8',
+            color: routeColor,
+            weight: isExpresswayRoute ? 6 : 5,
+            opacity: 0.9,
+            dashArray: (route.isShortest || isExpresswayRoute) ? undefined : '8, 8',
           });
         }
       }
@@ -160,6 +168,8 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
 
     // 3. Add Rest Stops Markers
     stops.forEach((stop, index) => {
+      const stopTime = getEstimatedDriveTimeFromStart(stop.kmFromStart, route, departureTime);
+
       const stopIcon = L.divIcon({
         className: 'custom-pin',
         html: `
@@ -176,11 +186,19 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
       const is24Hr = stop.amenities?.has24Hour ? '<div style="font-size: 10px; color: #fff; background: #1e293b; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; margin-bottom: 2px; font-weight: bold;">24 ชม.</div>' : '';
 
       marker.bindPopup(`
-        <div style="padding: 4px; font-family: system-ui, sans-serif; min-width: 220px;">
-          <div style="font-size: 11px; font-weight: bold; color: #2563eb;">จุดพักที่ ${index + 1} (กม. ${stop.kmFromStart})</div>
+        <div style="padding: 4px; font-family: system-ui, sans-serif; min-width: 230px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+            <span style="font-size: 11px; font-weight: bold; color: #2563eb;">จุดพักที่ ${index + 1} (กม. ${stop.kmFromStart})</span>
+            ${is24Hr}
+          </div>
           <div style="font-size: 13px; font-weight: bold; color: #0f172a; margin-top: 2px;">${stop.name}</div>
           <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${stop.location} (${stop.highwayNumber})</div>
-          ${is24Hr}
+          
+          <div style="margin-top: 6px; padding: 4px 8px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 11px; color: #166534; font-weight: 600;">
+            ⏱ จากจุด Start: <strong>~${stopTime.formattedDuration}</strong>
+            ${stopTime.estimatedArrivalTime ? `<span style="color: #15803d; margin-left: 4px;">(ถึง ~${stopTime.estimatedArrivalTime})</span>` : ''}
+          </div>
+
           <div style="font-size: 12px; color: #059669; font-weight: bold; margin-top: 4px;">⏱ แผนพัก: ${stop.durationMinutes} นาที</div>
           <div style="font-size: 11px; color: #334155; margin-top: 2px;">กิจกรรม: ${stop.activity}</div>
           <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
@@ -202,28 +220,42 @@ export const MapInteractive: React.FC<MapInteractiveProps> = ({
       const isAlreadyStop = stops.some(s => s.stationId === station.id || s.name === station.name);
       if (isAlreadyStop) return;
 
+      const stationTime = getEstimatedDriveTimeFromStart(station.kmFromStart, route, departureTime);
+      const isCustom = station.id.startsWith('custom-');
+      const is24Hr = station.amenities?.has24Hour ? '<span style="font-size: 10px; color: #fff; background: #d97706; padding: 2px 6px; border-radius: 4px; font-weight: bold;">⚡ 24 ชม.</span>' : '';
+      const customBadge = isCustom ? '<span style="font-size: 10px; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 4px; font-weight: bold;">ปั๊มที่คุณกรอกเอง ⭐</span>' : '';
+
       const stationIcon = L.divIcon({
         className: 'custom-pin',
         html: `
-          <div style="background-color: #64748b; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1.5px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); opacity: 0.9;">
-            ⛽
+          <div style="background-color: ${isCustom ? '#d97706' : station.amenities?.has24Hour ? '#0284c7' : '#475569'}; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: ${isCustom ? '12px' : '10px'}; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+            ${isCustom ? '⭐' : '⛽'}
           </div>
         `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       });
 
       const marker = L.marker(station.coordinates, { icon: stationIcon }).addTo(markersGroup);
 
-      const is24Hr = station.amenities?.has24Hour ? '<div style="font-size: 10px; color: #fff; background: #1e293b; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-weight: bold;">24 ชม.</div>' : '';
-
       marker.bindPopup(`
-        <div style="padding: 4px; font-family: system-ui, sans-serif; min-width: 220px;">
-          <div style="font-size: 10px; font-weight: bold; color: #64748b;">${station.brand} Station (กม. ${station.kmFromStart})</div>
+        <div style="padding: 4px; font-family: system-ui, sans-serif; min-width: 230px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-size: 10px; font-weight: bold; color: #64748b;">${station.brand} Station (กม. ${station.kmFromStart})</span>
+              ${customBadge}
+            </div>
+            ${is24Hr}
+          </div>
           <div style="font-size: 13px; font-weight: bold; color: #0f172a; margin-top: 1px;">${station.name}</div>
           <div style="font-size: 11px; color: #64748b;">${station.location} (${station.highwayNumber})</div>
-          <div style="font-size: 11px; color: #0284c7; margin-top: 3px;">💡 ${station.recommendedFor}</div>
-          ${is24Hr}
+          
+          <div style="margin-top: 6px; padding: 5px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 11px; color: #1e40af; font-weight: 600;">
+            <span>⏱ ใช้เวลาจากจุด Start: <strong>~${stationTime.formattedDuration}</strong></span>
+            ${stationTime.estimatedArrivalTime ? `<div style="font-size: 10px; color: #2563eb; margin-top: 2px;">(คาดว่าจะถึงประมาณ ${stationTime.estimatedArrivalTime})</div>` : ''}
+          </div>
+
+          <div style="font-size: 11px; color: #0284c7; margin-top: 4px;">💡 ${station.recommendedFor}</div>
           <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #e2e8f0; text-align: right;">
             <button class="btn-popup-add-station" data-station-id="${station.id}" style="background-color: #2563eb; color: white; border: none; font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
               + เพิ่มเป็นจุดพักรถ

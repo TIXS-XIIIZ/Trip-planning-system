@@ -14,7 +14,9 @@ import {
   Route, 
   Filter,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Search,
+  Plus
 } from 'lucide-react';
 
 interface MobileDrawerProps {
@@ -31,6 +33,12 @@ interface MobileDrawerProps {
   onOpenAiAssistant: () => void;
   onOpenPrintReport: () => void;
   googleMapsUrl: string;
+  allGasStations?: GasStation[];
+  filterSearch?: string;
+  onFilterSearchChange?: (val: string) => void;
+  filter24HourOnly?: boolean;
+  onFilter24HourToggle?: () => void;
+  onOpenCustomStationModal?: () => void;
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
@@ -47,11 +55,18 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenAiAssistant,
   onOpenPrintReport,
   googleMapsUrl,
+  allGasStations,
+  filterSearch,
+  onFilterSearchChange,
+  filter24HourOnly,
+  onFilter24HourToggle,
+  onOpenCustomStationModal,
 }) => {
   if (!isOpen) return null;
 
   const quickTimePresets = ['05:00', '06:00', '09:00', '18:00', '20:00'];
-  const brands = ['All', ...Array.from(new Set(selectedRoute.gasStationsList.map(s => s.brand)))];
+  const stationsPool = allGasStations || selectedRoute.gasStationsList;
+  const brands = ['All', ...Array.from(new Set(stationsPool.map(s => s.brand)))];
 
   const handleSelectTab = (tab: 'map-only' | 'timeline' | 'map' | 'stations' | 'safety' | 'cost') => {
     setActiveTab(tab);
@@ -207,7 +222,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 <Route className="w-3.5 h-3.5 text-blue-600" />
                 เลือกเส้นทาง
               </span>
-              <span className="text-[10px] text-slate-400 font-normal">3 เส้นทาง</span>
+              <span className="text-[10px] text-slate-400 font-normal">{ROUTE_OPTIONS.length} เส้นทาง</span>
             </div>
 
             <div className="space-y-2">
@@ -233,6 +248,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                             สั้นสุด
                           </span>
                         )}
+                        {r.tagColor === 'purple' && (
+                          <span className={`text-[10px] px-1 rounded font-semibold ${
+                            isSelected ? 'bg-purple-300 text-purple-950' : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            เริ่มต้น • ทางด่วน M6
+                          </span>
+                        )}
                       </div>
                       <div className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
                         {r.description.slice(0, 35)}...
@@ -250,21 +272,80 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           {/* Section 3: Gas Station Filter */}
           <div className="pt-2 border-t border-slate-100">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-amber-600" />
-              <span>Filter ปั๊มน้ำมันบนแผนที่</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-amber-600" />
+                <span>Filter ปั๊มน้ำมันบนแผนที่</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-semibold">
+                {stationsPool.length} ปั๊ม
+              </span>
             </div>
+
+            {/* Keyword / Station Name Search */}
+            <div className="relative mb-2">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="กรอกชื่อปั๊ม / อำเภอ เช่น บ้านตาก, สลกบาตร..."
+                value={filterSearch || ''}
+                onChange={(e) => onFilterSearchChange && onFilterSearchChange(e.target.value)}
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium placeholder:text-slate-400"
+              />
+              {filterSearch && (
+                <button
+                  onClick={() => onFilterSearchChange && onFilterSearchChange('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* 24-Hour Quick Toggle */}
+            <button
+              onClick={onFilter24HourToggle}
+              className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-between mb-2 active:scale-98 ${
+                filter24HourOnly
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Clock className={`w-3.5 h-3.5 ${filter24HourOnly ? 'text-white' : 'text-amber-600'}`} />
+                <span>ปั๊มที่เปิด 24 ชั่วโมงเท่านั้น</span>
+              </span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                filter24HourOnly ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {filter24HourOnly ? 'เปิดอยู่ ✓' : 'ปิด'}
+              </span>
+            </button>
+
+            {/* Brand Dropdown */}
             <select
               value={filterBrand}
               onChange={(e) => onFilterBrandChange(e.target.value)}
-              className="w-full text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs font-bold border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {brands.map(brand => (
                 <option key={brand} value={brand}>
-                  {brand === 'All' ? `แสดงทุกยี่ห้อ (${selectedRoute.gasStationsList.length} ปั๊ม)` : `แสดงเฉพาะ: ปั๊ม ${brand}`}
+                  {brand === 'All' ? `แสดงทุกยี่ห้อ (${stationsPool.length} ปั๊ม)` : `แสดงเฉพาะ: ปั๊ม ${brand}`}
                 </option>
               ))}
             </select>
+
+            {/* + กรอกเพิ่มปั๊มน้ำมันเอง button */}
+            <button
+              onClick={() => {
+                onClose();
+                if (onOpenCustomStationModal) onOpenCustomStationModal();
+              }}
+              className="w-full mt-2 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors active:scale-98"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ กรอกเพิ่มปั๊มน้ำมันเอง</span>
+            </button>
           </div>
 
           {/* Section 4: Departure Time */}

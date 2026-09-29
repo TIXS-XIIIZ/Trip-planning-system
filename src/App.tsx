@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ROUTE_OPTIONS, 
   DEFAULT_VEHICLE_SETTINGS, 
@@ -23,6 +23,7 @@ import { AiAssistantModal } from './components/AiAssistantModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { StationPickerModal } from './components/StationPickerModal';
 import { StandaloneMapPage } from './components/StandaloneMapPage';
+import { AddCustomStationModal } from './components/AddCustomStationModal';
 import confetti from 'canvas-confetti';
 import { 
   CheckCircle2, 
@@ -38,14 +39,34 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // 1. Core State
-  const [selectedRoute, setSelectedRoute] = useState<RouteOption>(ROUTE_OPTIONS[0]); // Default to shortest route
+  // 1. Core State - ตั้งเส้นทางที่ 4 (ภาชี + ทางด่วน M6) เป็นเส้นทางเริ่มต้นตามที่ผู้ใช้กำหนด
+  const defaultRoute = ROUTE_OPTIONS.find(r => r.id === 'route-phachi-expressway') || ROUTE_OPTIONS[3] || ROUTE_OPTIONS[0];
+  const [selectedRoute, setSelectedRoute] = useState<RouteOption>(defaultRoute);
   const [departureTime, setDepartureTime] = useState<string>('20:00');
-  const [stops, setStops] = useState<RestStop[]>(ROUTE_OPTIONS[0].defaultStops);
+  const [stops, setStops] = useState<RestStop[]>(defaultRoute.defaultStops);
   const [vehicle, setVehicle] = useState<VehicleSetting>(DEFAULT_VEHICLE_SETTINGS[0]);
   const [activeTab, setActiveTab] = useState<'map-only' | 'timeline' | 'map' | 'stations' | 'safety' | 'cost'>('map-only');
   const [filterBrand, setFilterBrand] = useState<string>('All');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  // Custom gas stations state (persisted in localStorage)
+  const [customGasStations, setCustomGasStations] = useState<GasStation[]>(() => {
+    try {
+      const saved = localStorage.getItem('trip_custom_gas_stations');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isCustomStationModalOpen, setIsCustomStationModalOpen] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filter24HourOnly, setFilter24HourOnly] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('trip_custom_gas_stations', JSON.stringify(customGasStations));
+    } catch {}
+  }, [customGasStations]);
 
   // Modals state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -53,6 +74,11 @@ export default function App() {
   const [isStationPickerOpen, setIsStationPickerOpen] = useState(false);
   const [pickerInsertKm, setPickerInsertKm] = useState<number | undefined>(undefined);
   const [shareCopied, setShareCopied] = useState(false);
+
+  // Gas stations combined with custom ones
+  const allGasStationsForRoute = useMemo(() => {
+    return [...customGasStations, ...selectedRoute.gasStationsList];
+  }, [customGasStations, selectedRoute.gasStationsList]);
 
   // 2. Computed Trip Details
   const trip = useMemo(() => {
@@ -121,6 +147,18 @@ export default function App() {
     setStops(stops.filter(s => s.stationId !== stationId && s.id !== stationId));
   };
 
+  const handleAddCustomStation = (newStation: GasStation, addToStopsImmediately: boolean = false) => {
+    setCustomGasStations(prev => [newStation, ...prev.filter(s => s.id !== newStation.id)]);
+    if (addToStopsImmediately) {
+      handleAddStationToStops(newStation);
+    }
+  };
+
+  const handleDeleteCustomStation = (stationId: string) => {
+    setCustomGasStations(prev => prev.filter(s => s.id !== stationId));
+    setStops(prev => prev.filter(s => s.stationId !== stationId && s.id !== stationId));
+  };
+
   const handleSharePlan = () => {
     const text = `แผนเดินทาง ลำพูน ➔ โคราช (${selectedRoute.title.split(':')[0]})
 ระยะทาง: ${trip.totalDistanceKm} กม.
@@ -159,6 +197,7 @@ export default function App() {
         onFilterBrandChange={setFilterBrand}
         isMobileDrawerOpen={isMobileDrawerOpen}
         setIsMobileDrawerOpen={setIsMobileDrawerOpen}
+        onOpenCustomStationModal={() => setIsCustomStationModalOpen(true)}
       />
 
       {/* 2. Main Workspace */}
@@ -181,6 +220,12 @@ export default function App() {
             filterBrand={filterBrand}
             onFilterBrandChange={setFilterBrand}
             onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
+            allGasStations={allGasStationsForRoute}
+            filterSearch={filterSearch}
+            onFilterSearchChange={setFilterSearch}
+            filter24HourOnly={filter24HourOnly}
+            onFilter24HourToggle={() => setFilter24HourOnly(prev => !prev)}
+            onOpenCustomStationModal={() => setIsCustomStationModalOpen(true)}
           />
         ) : (
           <>
@@ -256,9 +301,10 @@ export default function App() {
                 <MapInteractive
                   route={selectedRoute}
                   stops={stops}
-                  gasStations={selectedRoute.gasStationsList}
+                  gasStations={allGasStationsForRoute}
                   onAddStation={(st) => handleAddStationToStops(st)}
                   onRemoveStop={handleRemoveStationFromStops}
+                  departureTime={departureTime}
                 />
               </div>
             )}
@@ -268,9 +314,10 @@ export default function App() {
                 <MapInteractive
                   route={selectedRoute}
                   stops={stops}
-                  gasStations={selectedRoute.gasStationsList}
+                  gasStations={allGasStationsForRoute}
                   onAddStation={(st) => handleAddStationToStops(st)}
                   onRemoveStop={handleRemoveStationFromStops}
+                  departureTime={departureTime}
                 />
                 <TimelineView
                   trip={trip}
@@ -285,10 +332,14 @@ export default function App() {
 
             {activeTab === 'stations' && (
               <GasStationDirectory
-                gasStations={selectedRoute.gasStationsList}
+                gasStations={allGasStationsForRoute}
                 currentStops={stops}
                 onAddStationToStops={handleAddStationToStops}
                 onRemoveStationFromStops={handleRemoveStationFromStops}
+                onDeleteCustomStation={handleDeleteCustomStation}
+                route={selectedRoute}
+                departureTime={departureTime}
+                onOpenCustomStationModal={() => setIsCustomStationModalOpen(true)}
               />
             )}
 
@@ -375,11 +426,20 @@ export default function App() {
       <StationPickerModal
         isOpen={isStationPickerOpen}
         onClose={() => setIsStationPickerOpen(false)}
-        gasStations={selectedRoute.gasStationsList}
+        gasStations={allGasStationsForRoute}
         currentStops={stops}
         onAddStation={handleAddStationToStops}
         onAddCustomStop={handleAddCustomStop}
         defaultInsertKm={pickerInsertKm}
+        route={selectedRoute}
+        departureTime={departureTime}
+      />
+
+      <AddCustomStationModal
+        isOpen={isCustomStationModalOpen}
+        onClose={() => setIsCustomStationModalOpen(false)}
+        onAddCustomStation={handleAddCustomStation}
+        route={selectedRoute}
       />
 
     </div>

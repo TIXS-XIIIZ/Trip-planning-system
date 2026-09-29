@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GasStation, RestStop, BrandType } from '../types';
+import { GasStation, RestStop, BrandType, RouteOption } from '../types';
 import { 
   X, 
   Search, 
@@ -17,6 +17,7 @@ import {
   Info,
   Clock
 } from 'lucide-react';
+import { getEstimatedDriveTimeFromStart } from '../utils/tripCalculator';
 
 interface StationPickerModalProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ interface StationPickerModalProps {
   onAddStation: (station: GasStation, durationMinutes: number) => void;
   onAddCustomStop?: (customStop: RestStop) => void;
   defaultInsertKm?: number;
+  route?: RouteOption;
+  departureTime?: string;
 }
 
 export const StationPickerModal: React.FC<StationPickerModalProps> = ({
@@ -36,10 +39,13 @@ export const StationPickerModal: React.FC<StationPickerModalProps> = ({
   onAddStation,
   onAddCustomStop,
   defaultInsertKm,
+  route,
+  departureTime,
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'custom'>('catalog');
   const [search, setSearch] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
+  const [filter24HourOnly, setFilter24HourOnly] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(20);
 
   // Custom Stop Form State
@@ -78,6 +84,7 @@ export const StationPickerModal: React.FC<StationPickerModalProps> = ({
 
     if (!matchesSearch) return false;
     if (selectedBrand !== 'ALL' && s.brand !== selectedBrand) return false;
+    if (filter24HourOnly && !s.amenities?.has24Hour) return false;
     return true;
   });
 
@@ -202,9 +209,9 @@ export const StationPickerModal: React.FC<StationPickerModalProps> = ({
                 />
               </div>
 
-              {/* Brand Pills & Duration default */}
+              {/* Brand Pills, 24h Filter & Duration default */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {brands.map(b => (
                     <button
                       key={b.value}
@@ -219,6 +226,19 @@ export const StationPickerModal: React.FC<StationPickerModalProps> = ({
                       {b.label}
                     </button>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setFilter24HourOnly(!filter24HourOnly)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                      filter24HourOnly
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    <span>เปิด 24 ชม.</span>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs shrink-0 self-end sm:self-auto">
@@ -267,6 +287,15 @@ export const StationPickerModal: React.FC<StationPickerModalProps> = ({
                         <span className="text-xs font-extrabold text-slate-900">
                           กม. {st.kmFromStart} ({st.highwayNumber})
                         </span>
+                        {(() => {
+                          const timeInfo = getEstimatedDriveTimeFromStart(st.kmFromStart, route, departureTime);
+                          return (
+                            <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-blue-600" />
+                              ~{timeInfo.formattedDuration} จาก Start
+                            </span>
+                          );
+                        })()}
                       </div>
                       
                       <h4 className="text-sm font-bold text-slate-900 mt-1">{st.name}</h4>
